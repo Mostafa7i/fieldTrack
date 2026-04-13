@@ -235,7 +235,7 @@ body {
 /* Table */
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th {
-  text-align: left;
+  text-align: start;
   padding: 0.75rem 1rem;
   background: var(--bg-card2);
   color: var(--text-muted);

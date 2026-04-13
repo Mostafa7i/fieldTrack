@@ -47,6 +47,9 @@ export function AuthProvider({ children }) {
 
   const register = async (formData) => {
     const res = await axios.post(`${API_BASE}/auth/register`, formData);
+    if (!res.data.token && res.data.code === 'PENDING_VERIFICATION') {
+      return res.data;
+    }
     saveSession(res.data.token, res.data.user);
     return res.data;
   };

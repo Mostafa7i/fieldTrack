@@ -4,16 +4,21 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from '@/i18n/routing';
 import { Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 import toast from 'react-hot-toast';
 import { Briefcase, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const t = useTranslations('Auth');
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const { login } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [pendingUser, setPendingUser] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,11 +28,59 @@ export default function LoginPage() {
       toast.success(t('welcome_back', { name: data.user.name }));
       router.push(`/dashboard/${data.user.role}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || t('login_failed'));
+      const res = err.response?.data;
+      if (res?.code === 'PENDING_VERIFICATION' || res?.code === 'REJECTED_VERIFICATION') {
+        setPendingUser({ ...res.user, isRejected: res.code === 'REJECTED_VERIFICATION' });
+      } else {
+        toast.error(res?.message || t('login_failed'));
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // ── Pending / Rejected Approval Screen ──────────────────────────
+  if (pendingUser) {
+    const isCompany = pendingUser.role === 'company';
+    const isRejected = pendingUser.isRejected;
+    const colorCode = isRejected ? '#ef4444' : '#f59e0b';
+    const bgColor = isRejected ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)';
+    const iconStr = isRejected ? '❌' : '⏳';
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'var(--bg)' }}>
+        <div className="fade-in glass" style={{ maxWidth: 480, width: '100%', padding: '3rem', textAlign: 'center' }}>
+          <div style={{ width: 80, height: 80, borderRadius: '50%', background: bgColor, border: `2px solid ${colorCode}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '2rem' }}>
+            {iconStr}
+          </div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.75rem', color: colorCode }}>
+            {isRejected 
+              ? (isAr ? 'تم رفض طلبك' : 'Account Request Rejected')
+              : (isAr ? 'حسابك قيد المراجعة' : 'Account Pending Approval')
+            }
+          </h1>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.7 }}>
+            {isRejected
+              ? (isAr 
+                ? `مرحباً ${pendingUser.name}، نأسف لإخبارك أنه تم رفض طلب الانضمام كـ ${isCompany ? 'شركة' : 'مشرف'} من قِبل الإدارة.`
+                : `Hi ${pendingUser.name}, we are sorry to inform you that your request to join as a ${isCompany ? 'company' : 'supervisor'} has been rejected by the admin.`)
+              : (isAr
+                ? `مرحباً ${pendingUser.name}، تم إنشاء حسابك بنجاح كـ ${isCompany ? 'شركة' : 'مشرف'}. يحتاج حسابك إلى موافقة المشرف العام قبل أن تتمكن من الدخول. سيتم إعلامك فور القبول.`
+                : `Hi ${pendingUser.name}, your ${isCompany ? 'company' : 'supervisor'} account has been created successfully. An admin must verify your account before you can access the dashboard. You'll be able to log in once approved.`)
+            }
+          </p>
+          <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.5rem', textAlign: 'start' }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{isAr ? 'البريد الإلكتروني' : 'Email'}</p>
+            <p style={{ fontWeight: 700 }}>{pendingUser.email}</p>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', marginTop: '0.5rem' }}>{isAr ? 'الدور' : 'Role'}</p>
+            <p style={{ fontWeight: 700, textTransform: 'capitalize' }}>{isCompany ? (isAr ? 'شركة' : 'Company') : (isAr ? 'مشرف' : 'Supervisor')}</p>
+          </div>
+          <button onClick={() => setPendingUser(null)} className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+            {isAr ? '← العودة لتسجيل الدخول' : '← Back to Login'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -4,9 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTranslations } from 'next-intl';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useState } from 'react';
-import {
-  Bell, LogOut, Menu, X, Briefcase, GraduationCap, Building2, ShieldCheck, User
-} from 'lucide-react';
+import {LogOut, Menu, Briefcase, GraduationCap, Building2, ShieldCheck, User} from 'lucide-react';
 
 const roleIcons = {
   student: <GraduationCap size={16} />,
@@ -90,7 +88,6 @@ export default function Navbar({ onMenuToggle }) {
   </button>
 
   {dropdownOpen && (
-    /* التعديل هنا: استخدمنا ltr:right-0 و rtl:left-0 */
     <div className="absolute top-[120%] ltr:right-0 rtl:left-0 min-w-[220px] bg-slate-900 border border-slate-800 rounded-xl py-2 z-[100] shadow-2xl animate-in fade-in zoom-in duration-200 origin-top">
       <div className="px-4 py-3 border-b border-slate-800">
         <p className="text-sm font-bold text-white truncate">{user?.name}</p>

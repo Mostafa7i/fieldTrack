@@ -26,7 +26,15 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('ft_token');
       localStorage.removeItem('ft_user');
-      window.location.href = '/login';
+
+      // Preserve current locale by extracting it from window.location.pathname
+      const currentPath = window.location.pathname;
+      const isAr = currentPath.startsWith('/ar');
+      const loginPath = isAr ? '/ar/login' : '/en/login';
+      
+      if (!currentPath.includes('/login')) {
+        window.location.href = loginPath;
+      }
     }
     return Promise.reject(error);
   }
@@ -77,6 +85,7 @@ export const evaluationAPI = {
 // ── Attendance ────────────────────────────────────────
 export const attendanceAPI = {
   log: (data) => api.post('/attendance', data),
+  autoLog: (data) => api.post('/attendance/auto', data),
   getAll: (params) => api.get('/attendance', { params }),
   delete: (id) => api.delete(`/attendance/${id}`),
 };
@@ -101,13 +110,18 @@ export const adminAPI = {
   toggleInternship: (id) => api.put(`/admin/internships/${id}/toggle`),
   getAllReports: (params) => api.get('/admin/reports', { params }),
   getAttendanceSummary: () => api.get('/admin/attendance'),
+  getPendingUsers: () => api.get('/admin/pending'),
+  verifyUser: (id) => api.put(`/admin/users/${id}/verify`),
+  rejectUser: (id) => api.put(`/admin/users/${id}/reject`),
 };
 
 // ── AI Services ───────────────────────────────────────
 export const aiAPI = {
+  // data: { message, history: [{role, text}], context }
   chat: (data) => api.post('/ai/chat', data),
   evaluate: (applicationId) => api.get(`/ai/evaluate/${applicationId}`),
   getRecommendations: (locale = 'en') => api.get(`/ai/recommendations?locale=${locale}`),
+  health: () => api.get('/ai/health'),
 };
 
 // ── Tasks ──────────────────────────────────────────────

@@ -74,7 +74,12 @@
     "role_supervisor_desc": "متابعة الطلاب",
     "welcome_back_toast": "مرحباً بعودتك، {name}!",
     "account_created": "تم إنشاء الحساب! مرحباً بك، {name}!",
-    "account_created_toast": "تم إنشاء الحساب! مرحباً بك، {name}!"
+    "account_created_toast": "تم إنشاء الحساب! مرحباً بك، {name}!",
+    "name_required": "الاسم مطلوب",
+    "email_required": "البريد الإلكتروني مطلوب",
+    "invalid_email": "بريد إلكتروني غير صالح",
+    "password_required": "كلمة المرور مطلوبة",
+    "company_name_required": "اسم الشركة مطلوب"
   },
   "Common": {
     "company": "الشركة",
@@ -105,7 +110,8 @@
     "message_sent": "تم إرسال الرسالة بنجاح!",
     "failed_send": "فشل إرسال الرسالة",
     "sending": "جاري الإرسال...",
-    "send": "إرسال"
+    "send": "إرسال",
+    "late": "متأخر"
   },
   "Internships": {
     "browse_internships": "تصفح فرص التدريب",
@@ -335,7 +341,8 @@
     "student_attendance": "حضور الطلاب",
     "hours": "الساعات",
     "send_message": "إرسال رسالة",
-    "message_placeholder": "اكتب ملاحظاتك أو توجيهاتك للطالب..."
+    "message_placeholder": "اكتب ملاحظاتك أو توجيهاتك للطالب...",
+    "date": "التاريخ"
   },
   "AdminDashboard": {
     "title": "لوحة قيادة المسؤول",
@@ -390,7 +397,14 @@
     "reports_tab": "تقارير التدريب",
     "week": "الأسبوع",
     "grade": "الدرجة",
-    "reviewed_by": "تمت المراجعة بواسطة"
+    "reviewed_by": "تمت المراجعة بواسطة",
+    "pending_approvals": "طلبات التحقق",
+    "pending_approvals_desc": "حسابات الشركات والمشرفين الجدد بانتظار موافقتك.",
+    "no_pending": "لا توجد طلبات معلقة حالياً.",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "user_verified": "تم التحقق من الحساب بنجاح!",
+    "supervisor": "مشرف"
   },
   "Settings": {
     "title": "إعدادات الحساب",
@@ -413,7 +427,11 @@
     "failed_to_load": "فشل تحميل بيانات الملف الشخصي",
     "passwords_mismatch": "كلمات المرور الجديدة غير متطابقة",
     "profile_updated": "تم تحديث الملف الشخصي بنجاح!",
-    "failed_to_update": "فشل تحديث الملف الشخصي"
+    "failed_to_update": "فشل تحديث الملف الشخصي",
+    "working_hours": "أوقات الحضور والانصراف",
+    "working_hours_desc": "هذه الأوقات ستطبق على جميع الطلبة التابعين لك لتحديد التأخير والغياب التلقائي.",
+    "shift_start": "موعد بدء الحضور (Shift Start)",
+    "shift_end": "موعد الانصراف (Shift End)"
   },
   "Sidebar": {
     "dashboard": "لوحة التحكم",

@@ -22,7 +22,9 @@ export default function SettingsPage() {
     email: '',
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    shiftStart: '10:00',
+    shiftEnd: '16:00'
   });
 
   useEffect(() => {
@@ -33,7 +35,9 @@ export default function SettingsPage() {
         setFormData(prev => ({
           ...prev,
           name: userData.name || '',
-          email: userData.email || ''
+          email: userData.email || '',
+          shiftStart: userData.shiftStart || '10:00',
+          shiftEnd: userData.shiftEnd || '16:00'
         }));
       } catch (err) {
         toast.error(t('failed_to_load'));
@@ -64,6 +68,10 @@ export default function SettingsPage() {
         name: formData.name,
         email: formData.email
       };
+      if (user.role === 'supervisor') {
+        payload.shiftStart = formData.shiftStart;
+        payload.shiftEnd = formData.shiftEnd;
+      }
       
       if (formData.currentPassword && formData.newPassword) {
         payload.currentPassword = formData.currentPassword;
@@ -154,6 +162,40 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Supervisor Settings Section */}
+                  {user.role === 'supervisor' && (
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
+                        <Settings size={20} style={{ color: 'var(--primary-light)' }} /> {t('working_hours')}
+                      </h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                        {t('working_hours_desc')}
+                      </p>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.5rem' }}>{t('shift_start')}</label>
+                          <input
+                            type="time"
+                            name="shiftStart"
+                            className="form-input"
+                            value={formData.shiftStart}
+                            onChange={handleChange}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.5rem' }}>{t('shift_end')}</label>
+                          <input
+                            type="time"
+                            name="shiftEnd"
+                            className="form-input"
+                            value={formData.shiftEnd}
+                            onChange={handleChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Security Section */}
                   <div>

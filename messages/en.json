@@ -74,7 +74,12 @@
     "role_supervisor_desc": "Monitor students",
     "welcome_back_toast": "Welcome back, {name}!",
     "account_created": "Account created! Welcome, {name}!",
-    "account_created_toast": "Account created! Welcome, {name}!"
+    "account_created_toast": "Account created! Welcome, {name}!",
+    "name_required": "Name is required",
+    "email_required": "Email is required",
+    "invalid_email": "Invalid email address",
+    "password_required": "Password is required",
+    "company_name_required": "Company name is required"
   },
   "Common": {
     "company": "Company",
@@ -105,7 +110,8 @@
     "message_sent": "Message sent successfully!",
     "failed_send": "Failed to send message",
     "sending": "Sending…",
-    "send": "Send"
+    "send": "Send",
+    "late": "Late"
   },
   "Internships": {
     "browse_internships": "Browse Internships",
@@ -335,7 +341,8 @@
     "student_attendance": "Student Attendance",
     "hours": "Hours",
     "send_message": "Send Message",
-    "message_placeholder": "Write your feedback or instruction to the student..."
+    "message_placeholder": "Write your feedback or instruction to the student...",
+    "date": "Date"
   },
   "AdminDashboard": {
     "title": "Admin Dashboard",
@@ -390,7 +397,14 @@
     "reports_tab": "Training Reports",
     "week": "Week",
     "grade": "Grade",
-    "reviewed_by": "Reviewed By"
+    "reviewed_by": "Reviewed By",
+    "pending_approvals": "Pending Approvals",
+    "pending_approvals_desc": "New company and supervisor accounts awaiting your approval.",
+    "no_pending": "No pending approvals at the moment.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "user_verified": "Account verified successfully!",
+    "supervisor": "Supervisor"
   },
   "Settings": {
     "title": "Account Settings",
@@ -413,7 +427,11 @@
     "failed_to_load": "Failed to load profile details",
     "passwords_mismatch": "New passwords do not match",
     "profile_updated": "Profile updated successfully!",
-    "failed_to_update": "Failed to update profile"
+    "failed_to_update": "Failed to update profile",
+    "working_hours": "Working Hours",
+    "working_hours_desc": "These times will apply to all your students to automatically determine late arrivals and absences.",
+    "shift_start": "Shift Start",
+    "shift_end": "Shift End"
   },
   "Sidebar": {
     "dashboard": "Dashboard",

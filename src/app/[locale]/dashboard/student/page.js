@@ -140,6 +140,21 @@ export default function StudentDashboard() {
     }
   };
 
+  const autoSubmitAttendance = async (action) => {
+    if (!attendanceForm.internshipId) return toast.error(t('select_internship'));
+    setLoggingAttendance(true);
+    try {
+      await attendanceAPI.autoLog({ internshipId: attendanceForm.internshipId, action });
+      toast.success(isAr ? 'تم تسجيل الحضور/الانصراف تلقائياً' : 'Attendance auto-logged');
+      const attRes = await attendanceAPI.getAll();
+      setAttendanceList(attRes.data.data || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('failed_attendance'));
+    } finally {
+      setLoggingAttendance(false);
+    }
+  };
+
   const getAIRecommendations = async () => {
     setShowAiModal(true);
     setLoadingAiRecs(true);
@@ -534,48 +549,43 @@ export default function StudentDashboard() {
                 {tab === 'attendance' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                     {activeInternships.length > 0 && (
-                      <div className="card">
-                        <h3 style={{ fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Clock size={18} style={{ color: 'var(--primary-light)' }} /> {t('log_attendance')}
+                      <div className="card" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(99,102,241,0.1) 100%)', border: '1px solid var(--primary-light)' }}>
+                        <h3 style={{ fontWeight: 800, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Clock size={18} style={{ color: 'var(--primary-light)' }} /> {isAr ? 'تسجيل الحضور التلقائي' : 'Auto Attendance Check-in'}
                         </h3>
-                        <form onSubmit={submitAttendance} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                          <div style={{ gridColumn: '1/-1' }}>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem' }}>{t('internship')}</label>
-                            <select className="form-input" value={attendanceForm.internshipId} onChange={e => setAttendanceForm({ ...attendanceForm, internshipId: e.target.value })} required>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                          {isAr ? 'النظام يحدد الوقت والتاريخ تلقائياً بناءً على إعدادات مشرفك.' : 'System determines exact time based on supervisor settings.'}
+                        </p>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'end' }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem' }}>{t('select_internship')}</label>
+                            <select className="form-input" value={attendanceForm.internshipId} onChange={e => setAttendanceForm({ ...attendanceForm, internshipId: e.target.value })}>
                               <option value="">{t('select_internship')}</option>
                               {activeInternships.map(i => (
                                 <option key={i._id} value={i._id}>{i.title}</option>
                               ))}
                             </select>
                           </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem' }}>{t('date')}</label>
-                            <input type="date" className="form-input" value={attendanceForm.date} onChange={e => setAttendanceForm({ ...attendanceForm, date: e.target.value })} required />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem' }}>{t('status')}</label>
-                            <select className="form-input" value={attendanceForm.status} onChange={e => setAttendanceForm({ ...attendanceForm, status: e.target.value })}>
-                              <option value="present">{t('present')}</option>
-                              <option value="absent">{t('absent')}</option>
-                              <option value="late">{t('late')}</option>
-                              <option value="half_day">{t('half_day')}</option>
-                              <option value="remote">{t('remote')}</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem' }}>{t('check_in')}</label>
-                            <input type="time" className="form-input" value={attendanceForm.checkIn} onChange={e => setAttendanceForm({ ...attendanceForm, checkIn: e.target.value })} required={attendanceForm.status !== 'absent'} disabled={attendanceForm.status === 'absent'} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem' }}>{t('check_out')}</label>
-                            <input type="time" className="form-input" value={attendanceForm.checkOut} onChange={e => setAttendanceForm({ ...attendanceForm, checkOut: e.target.value })} required={attendanceForm.status !== 'absent'} disabled={attendanceForm.status === 'absent'} />
-                          </div>
-                          <div style={{ gridColumn: '1/-1' }}>
-                            <button type="submit" className="btn-primary" disabled={loggingAttendance}>
-                              {loggingAttendance ? tCommon('saving') : t('save_attendance')}
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              onClick={() => autoSubmitAttendance('checkIn')} 
+                              className="btn-primary" 
+                              disabled={loggingAttendance || !attendanceForm.internshipId}
+                              style={{ flex: 1, background: '#10b981', display: 'flex', justifyContent: 'center' }}
+                            >
+                              {loggingAttendance ? '...' : (isAr ? 'تسجيل الدخول (حضور)' : 'Check In')}
+                            </button>
+                            <button 
+                              onClick={() => autoSubmitAttendance('checkOut')} 
+                              className="btn-secondary" 
+                              disabled={loggingAttendance || !attendanceForm.internshipId}
+                              style={{ flex: 1, display: 'flex', justifyContent: 'center', border: '1px solid #ef4444', color: '#ef4444' }}
+                            >
+                              {loggingAttendance ? '...' : (isAr ? 'تسجيل الانصراف' : 'Check Out')}
                             </button>
                           </div>
-                        </form>
+                        </div>
                       </div>
                     )}
                     

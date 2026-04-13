@@ -7,8 +7,7 @@ import { internshipAPI, applicationAPI } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 import {
-  MapPin, Clock, Briefcase, Building2, Calendar, DollarSign,
-  CheckCircle, ArrowLeft, Send
+  MapPin, Clock, Briefcase, Building2, Calendar, DollarSign, ArrowLeft, Send
 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';

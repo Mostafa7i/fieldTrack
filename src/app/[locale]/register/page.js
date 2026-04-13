@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from '@/i18n/routing';
 import { Link } from '@/i18n/routing';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import toast from 'react-hot-toast';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -18,6 +18,9 @@ export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pendingUser, setPendingUser] = useState(null);
+  const locale = useLocale();
+  const isAr = locale === 'ar';
 
   const roles = [
     { value: 'student', label: t('role_student'), icon: GraduationCap },
@@ -25,7 +28,7 @@ export default function RegisterPage() {
     { value: 'supervisor', label: t('role_supervisor'), icon: ShieldCheck },
   ];
 
-  // 1. تعريف مخطط التحقق باستخدام Yup
+  // 1. Validation Schema
   const validationSchema = Yup.object({
     name: Yup.string().required(t('name_required')),
     email: Yup.string().email(t('invalid_email')).required(t('email_required')),
@@ -38,7 +41,7 @@ export default function RegisterPage() {
     }),
   });
 
-  // 2. إعداد Formik
+  // 2. Formik config
   const formik = useFormik({
     initialValues: {
       name: '',
@@ -52,8 +55,12 @@ export default function RegisterPage() {
       setLoading(true);
       try {
         const data = await register(values);
-        toast.success(t('account_created_toast', { name: data.user.name }));
-        router.push(`/dashboard/${data.user.role}`);
+        if (data.code === 'PENDING_VERIFICATION') {
+          setPendingUser(data.user);
+        } else {
+          toast.success(t('account_created_toast', { name: data.user.name }));
+          router.push(`/dashboard/${data.user.role}`);
+        }
       } catch (err) {
         toast.error(err.response?.data?.message || t('registration_failed'));
       } finally {
@@ -61,6 +68,38 @@ export default function RegisterPage() {
       }
     },
   });
+
+  // ── Pending Approval Screen ──────────────────────────
+  if (pendingUser) {
+    const isCompany = pendingUser.role === 'company';
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-8 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none max-w-md w-full text-center fade-in">
+          <div className="mx-auto w-20 h-20 rounded-full bg-amber-500/10 border-2 border-amber-500 flex items-center justify-center text-3xl mb-6">
+            ⏳
+          </div>
+          <h1 className="text-2xl font-extrabold text-amber-500 mb-3">
+            {isAr ? 'حسابك قيد المراجعة' : 'Account Pending Approval'}
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mb-6 leading-relaxed text-sm">
+            {isAr
+              ? `مرحباً ${pendingUser.name}، تم إنشاء حسابك بنجاح كـ ${isCompany ? 'شركة' : 'مشرف'}. يحتاج حسابك إلى موافقة المشرف العام قبل أن تتمكن من الدخول. سيتم إعلامك فور القبول.`
+              : `Hi ${pendingUser.name}, your ${isCompany ? 'company' : 'supervisor'} account has been created successfully. An admin must verify your account before you can access the dashboard. You'll be able to log in once approved.`
+            }
+          </p>
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 mb-6 text-start">
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">{isAr ? 'البريد الإلكتروني' : 'Email'}</p>
+            <p className="font-bold text-slate-900 dark:text-slate-200 mb-3">{pendingUser.email}</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">{isAr ? 'الدور' : 'Role'}</p>
+            <p className="font-bold text-slate-900 dark:text-slate-200 capitalize">{isCompany ? (isAr ? 'شركة' : 'Company') : (isAr ? 'مشرف' : 'Supervisor')}</p>
+          </div>
+          <Link href="/login" className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            {isAr ? '← العودة لتسجيل الدخول' : '← Back to Login'}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen flex items-center justify-center py-12 px-6 bg-slate-50 dark:bg-slate-900 overflow-hidden">

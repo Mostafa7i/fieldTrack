@@ -1,7 +1,7 @@
 export default function LoadingSpinner({ size = 32 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div
+    <div className="flex items-center justify-center">
+      <div 
         style={{
           width: size,
           height: size,

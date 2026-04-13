@@ -1,9 +1,6 @@
 import { useState, useCallback } from 'react';
 
-/**
- * Generic hook to wrap any async API call.
- * Returns { data, loading, error, execute }
- */
+
 export function useApi(apiFn) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -31,9 +28,7 @@ export function useApi(apiFn) {
   return { data, loading, error, execute };
 }
 
-/**
- * Hook that fetches data immediately on mount.
- */
+
 import { useEffect } from 'react';
 
 export function useFetch(apiFn, deps = []) {
@@ -41,7 +36,6 @@ export function useFetch(apiFn, deps = []) {
 
   useEffect(() => {
     execute();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   return { data, loading, error, refetch: execute };

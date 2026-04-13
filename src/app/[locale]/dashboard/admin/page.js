@@ -8,15 +8,17 @@ import LoadingSpinner from '../../../components/LoadingSpinner';
 import { adminAPI } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
-import { Users, Building2, Briefcase, FileText, CheckCircle, PieChart } from 'lucide-react';
+import { Users, Building2, Briefcase, FileText, CheckCircle, PieChart, ShieldCheck } from 'lucide-react';
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 export default function AdminDashboard() {
   const t = useTranslations('AdminDashboard');
   const tCommon = useTranslations('Common');
   const tStatus = useTranslations('Status');
   const { user } = useAuth();
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [menuOpen, setMenuOpen] = useState(false);
   const [tab, setTab] = useState('analytics');
   const [analytics, setAnalytics] = useState(null);
@@ -38,6 +40,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [assigningSupervisor, setAssigningSupervisor] = useState(null);
   const [selectedSupervisorId, setSelectedSupervisorId] = useState('');
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [rejectingUser, setRejectingUser] = useState(null);
 
   const fetchUsers = async () => {
     try { const res = await adminAPI.getUsers(); setUsersList(res.data.data); } catch { }
@@ -55,12 +59,19 @@ export default function AdminDashboard() {
     try { const res = await adminAPI.getAllReports(); setReports(res.data.data); } catch { }
   };
 
+  const fetchPending = async () => {
+    try { const res = await adminAPI.getPendingUsers(); setPendingUsers(res.data.data); } catch { }
+  };
+
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const res = await adminAPI.getAnalytics();
-        setAnalytics(res.data.data);
+        const [analyticsRes] = await Promise.all([
+          adminAPI.getAnalytics(),
+          fetchPending(),
+        ]);
+        setAnalytics(analyticsRes.data.data);
       } catch { toast.error(t('failed_to_load')); }
       finally { setLoading(false); }
     };
@@ -72,6 +83,7 @@ export default function AdminDashboard() {
     if (tab === 'companies' && companies.length === 0) fetchCompanies();
     if (tab === 'internships' && internships.length === 0) fetchInternships();
     if (tab === 'reports' && reports.length === 0) fetchReports();
+    if (tab === 'pending') fetchPending();
   }, [tab]);
 
   const toggleUser = async (id) => {
@@ -120,6 +132,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleVerifyUser = async (id) => {
+    try {
+      await adminAPI.verifyUser(id);
+      setPendingUsers(prev => prev.filter(u => u._id !== id));
+      toast.success(t('user_verified') || 'User verified successfully');
+    } catch {
+      toast.error(t('verification_failed'));
+    }
+  };
+
+  const handleRejectUser = async () => {
+    if (!rejectingUser) return;
+    try {
+      await adminAPI.rejectUser(rejectingUser._id);
+      setPendingUsers(prev => prev.filter(u => u._id !== rejectingUser._id));
+      toast.success(isAr ? 'تم رفض الحساب بنجاح' : 'User rejected successfully');
+      setRejectingUser(null);
+    } catch {
+      toast.error(t('delete_failed') || 'Action failed');
+    }
+  };
+
   const COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   return (
@@ -137,13 +171,17 @@ export default function AdminDashboard() {
             <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
               {[
                 { key: 'analytics', label: t('analytics') },
+                { key: 'pending', label: t('pending_approvals') || 'طلبات التحقق' },
                 { key: 'users', label: t('users') },
                 { key: 'companies', label: t('companies') },
                 { key: 'internships', label: t('internships_tab') },
                 { key: 'reports', label: t('reports_tab') },
               ].map(tabItem => (
-                <button key={tabItem.key} onClick={() => { setTab(tabItem.key); window.location.hash = tabItem.key; }} style={{ padding: '0.6rem 1.1rem', background: 'none', border: 'none', borderBottom: tab === tabItem.key ? '2px solid var(--primary)' : '2px solid transparent', color: tab === tabItem.key ? 'var(--primary-light)' : 'var(--text-muted)', fontWeight: tab === tabItem.key ? 700 : 500, cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                <button key={tabItem.key} onClick={() => { setTab(tabItem.key); window.location.hash = tabItem.key; }} style={{ padding: '0.6rem 1.1rem', background: 'none', border: 'none', borderBottom: tab === tabItem.key ? '2px solid var(--primary)' : '2px solid transparent', color: tab === tabItem.key ? 'var(--primary-light)' : 'var(--text-muted)', fontWeight: tab === tabItem.key ? 700 : 500, cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   {tabItem.label}
+                  {tabItem.key === 'pending' && pendingUsers.length > 0 && (
+                    <span style={{ background: '#ef4444', color: 'white', borderRadius: '50%', width: 20, height: 20, fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>{pendingUsers.length}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -195,6 +233,53 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
+                {/* Pending Approvals */}
+                {tab === 'pending' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div className="card" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(239,68,68,0.05) 100%)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                      <h3 style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <ShieldCheck style={{ color: '#f59e0b' }} />
+                        {t('pending_approvals') || 'طلبات التحقق من الحسابات'}
+                      </h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        {t('pending_approvals_desc') || 'حسابات الشركات والمشرفين الجدد بانتظار موافقتك.'}
+                      </p>
+                    </div>
+
+                    {pendingUsers.length === 0 ? (
+                      <div className="card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                        <CheckCircle size={48} style={{ margin: '0 auto 1rem', opacity: 0.3, color: '#10b981' }} />
+                        <p style={{ fontWeight: 700 }}>{t('no_pending') || 'لا توجد طلبات معلقة حالياً.'}</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+                        {pendingUsers.map(pu => (
+                          <div key={pu._id} className="card" style={{ borderLeft: '4px solid #f59e0b' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                              <div>
+                                <h4 style={{ fontWeight: 700, fontSize: '1rem' }}>{pu.name}</h4>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pu.email}</p>
+                              </div>
+                              <span className="badge badge-warning" style={{ textTransform: 'capitalize' }}>{pu.role === 'company' ? (t('company') || 'شركة') : (t('supervisor') || 'مشرف')}</span>
+                            </div>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                              {t('joined') || 'تاريخ التسجيل'}: {new Date(pu.createdAt).toLocaleString()}
+                            </p>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button onClick={() => handleVerifyUser(pu._id)} className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#10b981' }}>
+                                <CheckCircle size={16} /> {t('approve') || 'موافقة'}
+                              </button>
+                              <button onClick={() => setRejectingUser(pu)} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.3rem', padding: '0.5rem', fontSize: '0.85rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
+                                {t('reject') || 'رفض'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Users Management */}
                 {tab === 'users' && (
                   <div className="card" style={{ overflowX: 'auto' }}>
@@ -227,7 +312,15 @@ export default function AdminDashboard() {
                             <td style={{ color: 'var(--text-muted)' }}>{u.email}</td>
                             <td style={{ textTransform: 'capitalize' }}>{u.role}</td>
                             <td style={{ color: 'var(--text-muted)' }}>{new Date(u.createdAt).toLocaleDateString()}</td>
-                            <td><span className={`badge ${u.isActive ? 'badge-success' : 'badge-danger'}`}>{u.isActive ? t('active') : t('disabled')}</span></td>
+                            <td>
+                              {u.isRejected ? (
+                                <span className="badge badge-danger" style={{ background: '#ef4444', color: '#fff' }}>{isAr ? 'مرفوض' : 'Rejected'}</span>
+                              ) : !u.isVerified && (u.role === 'company' || u.role === 'supervisor') ? (
+                                <span className="badge badge-warning" style={{ background: '#f59e0b', color: '#fff' }}>{isAr ? 'قيد المراجعة' : 'Pending'}</span>
+                              ) : (
+                                <span className={`badge ${u.isActive ? 'badge-success' : 'badge-danger'}`}>{u.isActive ? t('active') : t('disabled')}</span>
+                              )}
+                            </td>
                             <td>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                 {u.role === 'student' && assigningSupervisor !== u._id && (
@@ -326,6 +419,30 @@ export default function AdminDashboard() {
           </main>
         </div>
       </div>
+
+      {rejectingUser && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)', padding: '1.5rem' }}>
+          <div className="fade-in glass" style={{ maxWidth: 420, width: '100%', padding: '2rem', borderRadius: '1.5rem', border: '1px solid var(--border)', background: 'var(--bg)' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(239,68,68,0.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', color: '#ef4444' }}>
+              <ShieldCheck size={32} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>{isAr ? 'تأكيد الرفض' : 'Confirm Rejection'}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '2rem', lineHeight: 1.6 }}>
+              {isAr 
+                ? `هل أنت متأكد من رفض طلب الانضمام الخاص بـ ${rejectingUser.name}؟ لن يتمكن من الدخول للمنصة وسيتم إخباره بالرفض عند محاولته تسجيل الدخول.` 
+                : `Are you sure you want to reject the request for ${rejectingUser.name}? They will be notified upon attempting to login.`}
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setRejectingUser(null)} style={{ flex: 1, padding: '0.75rem', borderRadius: '0.75rem', background: 'var(--bg-lighter)', color: 'var(--text)', border: '1px solid var(--border)', fontWeight: 600, cursor: 'pointer' }}>
+                {isAr ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button onClick={handleRejectUser} style={{ flex: 1, padding: '0.75rem', borderRadius: '0.75rem', background: '#ef4444', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)' }}>
+                {isAr ? 'تأكيد الرفض' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </ProtectedRoute>
   );
 }
