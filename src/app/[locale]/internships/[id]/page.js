@@ -10,7 +10,7 @@ import {
   MapPin, Clock, Briefcase, Building2, Calendar, DollarSign, ArrowLeft, Send
 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 const statusColor = { open: 'badge-success', closed: 'badge-danger', draft: 'badge-gray' };
 
@@ -20,6 +20,7 @@ export default function InternshipDetailsPage() {
   const tStatus = useTranslations('Status');
   const { id } = useParams();
   const router = useRouter();
+  const locale = useLocale();
   const { user, isAuthenticated } = useAuth();
   const [internship, setInternship] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +33,7 @@ export default function InternshipDetailsPage() {
         setInternship(res.data.data);
       } catch (err) {
         toast.error(t('failed_to_load'));
-        router.push('/internships');
+        router.push(`/${locale}/internships`);
       } finally {
         setLoading(false);
       }
@@ -43,7 +44,7 @@ export default function InternshipDetailsPage() {
   const handleApply = async () => {
     if (!isAuthenticated) {
       toast.error(t('must_login'));
-      router.push('/login');
+      router.push(`/${locale}/login`);
       return;
     }
     if (user?.role !== 'student') {
@@ -55,7 +56,7 @@ export default function InternshipDetailsPage() {
     try {
       await applicationAPI.apply({ internshipId: id });
       toast.success(t('applied_success'));
-      router.push('/dashboard/student#applications');
+      router.push(`/${locale}/dashboard/student#applications`);
     } catch (err) {
       toast.error(err.response?.data?.message || t('failed_to_apply'));
     } finally {

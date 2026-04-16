@@ -114,6 +114,8 @@
     "late": "متأخر"
   },
   "Internships": {
+    "paid": "مدفوع",
+    "unpaid": "غير مدفوع",
     "browse_internships": "تصفح فرص التدريب",
     "opportunities_available": "فرصة متاحة",
     "search_placeholder": "ابحث في العنوان أو الوصف…",
@@ -349,6 +351,7 @@
     "subtitle": "نظرة عامة على النظام وإدارته",
     "total_users": "إجمالي المستخدمين",
     "students": "طلاب",
+    "student": "طالب",
     "total_companies": "إجمالي الشركات",
     "total_internships": "إجمالي التدريبات",
     "open": "مفتوحة",
@@ -392,6 +395,7 @@
     "analytics": "التحليلات",
     "users": "المستخدمين",
     "internships_tab": "فرص التدريب",
+    "internship": "التدريب",
     "close_internship": "إغلاق التدريب",
     "open_internship": "فتح التدريب",
     "reports_tab": "تقارير التدريب",

@@ -1,16 +1,18 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navbar from '../../../components/Navbar';
 import Sidebar from '../../../components/Sidebar';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import StatCard from '../../../components/StatCard';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { applicationAPI, reportAPI, evaluationAPI, notificationAPI, attendanceAPI, authAPI, aiAPI, taskAPI } from '@/services/api';
+import OnboardingModal from '../../../components/OnboardingModal';
+import { applicationAPI, reportAPI, evaluationAPI, notificationAPI, attendanceAPI, authAPI, aiAPI, taskAPI, studentAPI } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
-import { ClipboardList, FileText, Star, Bell, Send, CheckCircle, Clock, Upload, Award, Download, Trophy, Brain, AlertTriangle, PlayCircle } from 'lucide-react';
+import { ClipboardList, FileText, Star, Bell, Send, CheckCircle, Clock, Upload, Award, Download, Trophy, Brain, AlertTriangle, PlayCircle, LogIn, LogOut, Timer, Settings, User } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { useRouter } from 'next/navigation';
 
 const appStatusBadge = { pending: 'badge-warning', reviewing: 'badge-info', accepted: 'badge-success', rejected: 'badge-danger', withdrawn: 'badge-gray' };
 const reportStatusBadge = { draft: 'badge-gray', submitted: 'badge-info', reviewed: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
@@ -22,10 +24,12 @@ export default function StudentDashboard() {
   const tRec = useTranslations('Recommendation');
   const locale = useLocale();
   const isAr = locale === 'ar';
+  const router = useRouter();
   
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [tab, setTab] = useState('overview');
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [applications, setApplications] = useState([]);
   const [reports, setReports] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
@@ -40,7 +44,22 @@ export default function StudentDashboard() {
   const [loggingAttendance, setLoggingAttendance] = useState(false);
   const [resumeUrl, setResumeUrl] = useState('');
   const [uploadingCV, setUploadingCV] = useState(false);
-  
+
+  // Shift info state
+  const [shiftInfo, setShiftInfo] = useState({ shiftStart: '09:00', shiftEnd: '17:00', hasSupervisor: false, supervisorName: null });
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Computed: is the current time within the supervisor's allowed window?
+  const isWithinShift = (() => {
+    const now = currentTime;
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const [sh, sm] = (shiftInfo.shiftStart || '09:00').split(':').map(Number);
+    const [eh, em] = (shiftInfo.shiftEnd || '17:00').split(':').map(Number);
+    const startMins = sh * 60 + sm;
+    const endMins = eh * 60 + em;
+    return nowMins >= startMins && nowMins <= endMins;
+  })();
+
   // Game/Leaderboard state
   const [leaderboard, setLeaderboard] = useState([]);
 
@@ -72,14 +91,16 @@ export default function StudentDashboard() {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [appRes, repRes, evalRes, notifRes, attRes, leaderRes, taskRes] = await Promise.all([
+        const [appRes, repRes, evalRes, notifRes, attRes, leaderRes, taskRes, shiftRes, profileRes] = await Promise.all([
           applicationAPI.getAll(),
           reportAPI.getAll(),
           evaluationAPI.getAll(),
           notificationAPI.getAll(),
           attendanceAPI.getAll(),
           evaluationAPI.getLeaderboard(),
-          taskAPI.getStudentTasks()
+          taskAPI.getStudentTasks(),
+          attendanceAPI.getShiftInfo(),
+          studentAPI.getProfile().catch(() => null),
         ]);
         setApplications(appRes.data.data || []);
         setReports(repRes.data.data || []);
@@ -88,6 +109,12 @@ export default function StudentDashboard() {
         setAttendanceList(attRes.data.data || []);
         setLeaderboard(leaderRes.data.data || []);
         setTasks(taskRes.data.data || []);
+        if (shiftRes.data?.data) setShiftInfo(shiftRes.data.data);
+
+        // Show onboarding if student hasn't completed their profile yet
+        if (profileRes && !profileRes.data?.data?.profileCompleted) {
+          setShowOnboarding(true);
+        }
       } catch (err) {
         toast.error(t('failed_to_load'));
       } finally {
@@ -95,6 +122,10 @@ export default function StudentDashboard() {
       }
     };
     fetchAll();
+
+    // Update current time every 30 seconds
+    const timer = setInterval(() => setCurrentTime(new Date()), 30000);
+    return () => clearInterval(timer);
   }, []);
 
   const submitReport = async (e) => {
@@ -162,7 +193,9 @@ export default function StudentDashboard() {
       const res = await aiAPI.getRecommendations(locale);
       setRecommendations(res.data || []);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to get recommendations. Ensure AI is configured.');
+      // Should never reach here due to server-side local fallback
+      // but handle gracefully just in case
+      setRecommendations([]);
     } finally {
       setLoadingAiRecs(false);
     }
@@ -189,13 +222,35 @@ export default function StudentDashboard() {
   return (
     <ProtectedRoute allowedRoles={['student']}>
       <div>
+        {showOnboarding && (
+          <OnboardingModal
+            userName={user?.name}
+            onComplete={() => setShowOnboarding(false)}
+          />
+        )}
         <Navbar onMenuToggle={() => setMenuOpen(!menuOpen)} />
         <div className="dashboard-layout" style={{ paddingTop: '64px' }}>
           <Sidebar isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
           <main className="main-content">
-            <div style={{ marginBottom: '2rem' }}>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{t('title')}</h1>
-              <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>{t('welcome', { name: user?.name })}</p>
+            <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{t('title')}</h1>
+                <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>{t('welcome', { name: user?.name })}</p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.6rem' }}>
+                <button
+                  onClick={() => router.push(`/${locale}/dashboard/student/profile`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.9rem', background: 'var(--bg-lighter)', border: '1px solid var(--border)', borderRadius: '0.6rem', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem', transition: 'all 0.15s' }}
+                >
+                  <Settings size={15} /> {isAr ? 'تفضيلاتي' : 'My Preferences'}
+                </button>
+                <button
+                  onClick={() => setShowOnboarding(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.9rem', background: 'linear-gradient(135deg, var(--primary), #8b5cf6)', color: 'white', border: 'none', borderRadius: '0.6rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+                >
+                  <User size={15} /> {isAr ? 'تحديث ملفي' : 'Quick Setup'}
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
@@ -317,7 +372,7 @@ export default function StudentDashboard() {
                           {applications.map(app => (
                             <tr key={app._id}>
                               <td style={{ fontWeight: 600 }}>{app.internship?.title}</td>
-                              <td>{app.internship?.company?.companyName || '—'}</td>
+                              <td>{app.internship?.companyProfile?.companyName || app.internship?.company?.name || '—'}</td>
                               <td style={{ color: 'var(--text-muted)' }}>{new Date(app.createdAt).toLocaleDateString()}</td>
                               <td><span className={`badge ${appStatusBadge[app.status]}`}>{tStatus(app.status)}</span></td>
                               <td>
@@ -548,6 +603,61 @@ export default function StudentDashboard() {
                 {/* Attendance */}
                 {tab === 'attendance' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                    {/* Shift Window Info Banner */}
+                    <div className="card" style={{
+                      background: isWithinShift
+                        ? 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.08) 100%)'
+                        : 'linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(245,158,11,0.06) 100%)',
+                      border: `1px solid ${isWithinShift ? 'rgba(16,185,129,0.35)' : 'rgba(239,68,68,0.3)'}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+                            <Timer size={18} style={{ color: isWithinShift ? '#10b981' : '#ef4444' }} />
+                            <h4 style={{ fontWeight: 800, fontSize: '1rem', color: isWithinShift ? '#10b981' : '#ef4444' }}>
+                              {isWithinShift
+                                ? (isAr ? '✓ أنت داخل نطاق وقت الحضور' : '✓ You are within the attendance window')
+                                : (isAr ? '✗ خارج وقت الحضور المسموح' : '✗ Outside the allowed attendance window')}
+                            </h4>
+                          </div>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            {shiftInfo.hasSupervisor
+                              ? (isAr ? `مشرفك (${shiftInfo.supervisorName}) حدد ساعات الحضور:` : `Your supervisor (${shiftInfo.supervisorName}) set attendance hours:`)
+                              : (isAr ? 'ساعات الحضور الافتراضية (لا يوجد مشرف معين):' : 'Default attendance hours (no supervisor assigned):')
+                            }
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          <div style={{ textAlign: 'center', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '0.6rem', padding: '0.4rem 0.8rem' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{isAr ? 'بداية الوردية' : 'Shift Start'}</div>
+                            <div style={{ fontWeight: 800, color: '#10b981', fontSize: '1.1rem' }}>{shiftInfo.shiftStart || '09:00'}</div>
+                          </div>
+                          <div style={{ fontWeight: 700, color: 'var(--text-muted)', fontSize: '1.1rem' }}>→</div>
+                          <div style={{ textAlign: 'center', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '0.6rem', padding: '0.4rem 0.8rem' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{isAr ? 'نهاية الوردية' : 'Shift End'}</div>
+                            <div style={{ fontWeight: 800, color: '#ef4444', fontSize: '1.1rem' }}>{shiftInfo.shiftEnd || '17:00'}</div>
+                          </div>
+                          <div style={{ textAlign: 'center', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '0.6rem', padding: '0.4rem 0.8rem' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{isAr ? 'الوقت الحالي' : 'Current Time'}</div>
+                            <div style={{ fontWeight: 800, color: 'var(--primary-light)', fontSize: '1.1rem' }}>
+                              {currentTime.getHours().toString().padStart(2,'0')}:{currentTime.getMinutes().toString().padStart(2,'0')}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {!isWithinShift && (
+                        <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(239,68,68,0.08)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <AlertTriangle size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                          <p style={{ fontSize: '0.8rem', color: '#f59e0b' }}>
+                            {isAr
+                              ? `أزرار الحضور معطلة خارج الفترة الزمنية المحددة (${shiftInfo.shiftStart} - ${shiftInfo.shiftEnd}).`
+                              : `Attendance buttons are disabled outside the allowed window (${shiftInfo.shiftStart} – ${shiftInfo.shiftEnd}).`}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     {activeInternships.length > 0 && (
                       <div className="card" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(99,102,241,0.1) 100%)', border: '1px solid var(--primary-light)' }}>
                         <h3 style={{ fontWeight: 800, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -556,7 +666,7 @@ export default function StudentDashboard() {
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
                           {isAr ? 'النظام يحدد الوقت والتاريخ تلقائياً بناءً على إعدادات مشرفك.' : 'System determines exact time based on supervisor settings.'}
                         </p>
-                        
+
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'end' }}>
                           <div style={{ flex: 1 }}>
                             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem' }}>{t('select_internship')}</label>
@@ -568,27 +678,76 @@ export default function StudentDashboard() {
                             </select>
                           </div>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button 
-                              onClick={() => autoSubmitAttendance('checkIn')} 
-                              className="btn-primary" 
-                              disabled={loggingAttendance || !attendanceForm.internshipId}
-                              style={{ flex: 1, background: '#10b981', display: 'flex', justifyContent: 'center' }}
+                            <button
+                              onClick={() => autoSubmitAttendance('checkIn')}
+                              className="btn-primary"
+                              disabled={loggingAttendance || !attendanceForm.internshipId || !isWithinShift}
+                              title={!isWithinShift ? (isAr ? 'خارج وقت الحضور المسموح' : 'Outside allowed attendance window') : ''}
+                              style={{
+                                flex: 1,
+                                background: isWithinShift ? '#10b981' : '#64748b',
+                                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem',
+                                opacity: !isWithinShift ? 0.6 : 1,
+                                cursor: !isWithinShift ? 'not-allowed' : 'pointer',
+                              }}
                             >
-                              {loggingAttendance ? '...' : (isAr ? 'تسجيل الدخول (حضور)' : 'Check In')}
+                              <LogIn size={16} />
+                              {loggingAttendance ? '...' : (isAr ? 'تسجيل الدخول' : 'Check In')}
                             </button>
-                            <button 
-                              onClick={() => autoSubmitAttendance('checkOut')} 
-                              className="btn-secondary" 
-                              disabled={loggingAttendance || !attendanceForm.internshipId}
-                              style={{ flex: 1, display: 'flex', justifyContent: 'center', border: '1px solid #ef4444', color: '#ef4444' }}
+                            <button
+                              onClick={() => autoSubmitAttendance('checkOut')}
+                              className="btn-secondary"
+                              disabled={loggingAttendance || !attendanceForm.internshipId || !isWithinShift}
+                              title={!isWithinShift ? (isAr ? 'خارج وقت الحضور المسموح' : 'Outside allowed attendance window') : ''}
+                              style={{
+                                flex: 1,
+                                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem',
+                                border: `1px solid ${isWithinShift ? '#ef4444' : '#475569'}`,
+                                color: isWithinShift ? '#ef4444' : '#64748b',
+                                opacity: !isWithinShift ? 0.6 : 1,
+                                cursor: !isWithinShift ? 'not-allowed' : 'pointer',
+                              }}
                             >
+                              <LogOut size={16} />
                               {loggingAttendance ? '...' : (isAr ? 'تسجيل الانصراف' : 'Check Out')}
                             </button>
                           </div>
                         </div>
                       </div>
                     )}
-                    
+
+                    {/* Attendance Stats */}
+                    {attendanceList.length > 0 && (() => {
+                      const totalHrs = attendanceList.reduce((s, r) => s + (r.hoursWorked || 0), 0);
+                      const presentDays = attendanceList.filter(r => r.status === 'present' || r.status === 'remote').length;
+                      const lateDays = attendanceList.filter(r => r.status === 'late').length;
+                      const absentDays = attendanceList.filter(r => r.status === 'absent').length;
+                      return (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                          <div className="card" style={{ textAlign: 'center', padding: '1rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
+                            <Timer size={20} style={{ color: '#10b981', margin: '0 auto 0.4rem' }} />
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#10b981' }}>{totalHrs.toFixed(1)}h</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{isAr ? 'إجمالي الساعات' : 'Total Hours'}</div>
+                          </div>
+                          <div className="card" style={{ textAlign: 'center', padding: '1rem', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                            <CheckCircle size={20} style={{ color: 'var(--primary-light)', margin: '0 auto 0.4rem' }} />
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary-light)' }}>{presentDays}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{isAr ? 'أيام الحضور' : 'Present Days'}</div>
+                          </div>
+                          <div className="card" style={{ textAlign: 'center', padding: '1rem', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
+                            <AlertTriangle size={20} style={{ color: '#f59e0b', margin: '0 auto 0.4rem' }} />
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f59e0b' }}>{lateDays}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{isAr ? 'أيام التأخر' : 'Late Days'}</div>
+                          </div>
+                          <div className="card" style={{ textAlign: 'center', padding: '1rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                            <Clock size={20} style={{ color: '#ef4444', margin: '0 auto 0.4rem' }} />
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ef4444' }}>{absentDays}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{isAr ? 'أيام الغياب' : 'Absent Days'}</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div className="card" style={{ overflowX: 'auto' }}>
                       <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>{t('attendance_history')}</h3>
                       {attendanceList.length === 0 ? (
@@ -601,6 +760,7 @@ export default function StudentDashboard() {
                               <th>{tCommon('status')}</th>
                               <th>{t('check_in')}</th>
                               <th>{t('check_out')}</th>
+                              <th>{isAr ? 'الساعات الفعلية' : 'Hours Worked'}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -608,8 +768,17 @@ export default function StudentDashboard() {
                               <tr key={item._id}>
                                 <td style={{ fontWeight: 600 }}>{new Date(item.date).toLocaleDateString()}</td>
                                 <td><span className={`badge badge-${item.status === 'present' || item.status === 'remote' ? 'success' : item.status === 'absent' ? 'danger' : 'warning'}`}>{t(item.status) || item.status}</span></td>
-                                <td>{item.checkIn || '—'}</td>
-                                <td>{item.checkOut || '—'}</td>
+                                <td style={{ color: '#10b981', fontWeight: 600 }}>{item.checkIn || '—'}</td>
+                                <td style={{ color: '#ef4444', fontWeight: 600 }}>{item.checkOut || '—'}</td>
+                                <td>
+                                  {item.hoursWorked > 0 ? (
+                                    <span style={{ fontWeight: 700, color: 'var(--primary-light)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                      <Timer size={13} /> {item.hoursWorked.toFixed(1)}h
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -732,43 +901,91 @@ export default function StudentDashboard() {
             )}
 
             {showAiModal && (
-              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
                 <div className="card fade-in" style={{ width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
-                  <button onClick={() => setShowAiModal(false)} style={{ position: 'absolute', top: '1rem', right: isAr ? 'auto' : '1rem', left: isAr ? '1rem' : 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>✖</button>
-                  <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Brain className="gradient-text" /> {isAr ? 'توصيات الذكاء الاصطناعي لك' : 'My AI Recommendations'}
-                  </h3>
-                  
+                  <button onClick={() => setShowAiModal(false)} style={{ position: 'absolute', top: '1rem', right: isAr ? 'auto' : '1rem', left: isAr ? '1rem' : 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>✖</button>
+
+                  {/* Header */}
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+                      <Brain style={{ color: 'var(--primary-light)' }} />
+                      {isAr ? 'توصيات الذكاء الاصطناعي' : 'AI Recommendations'}
+                    </h3>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                      {isAr ? 'أفضل الفرص المناسبة لملفك الشخصي ومهاراتك وتفضيلاتك' : 'Top internships matched to your profile, skills, and preferences'}
+                    </p>
+                  </div>
+
                   {loadingAiRecs ? (
                     <div style={{ padding: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
                       <LoadingSpinner size={40} />
-                      <p style={{ color: 'var(--primary-light)', fontWeight: 600 }}>{isAr ? 'جاري تحليل الفرص لاستنتاج الأنسب...' : 'Analyzing internships for best matches...'}</p>
+                      <p style={{ color: 'var(--primary-light)', fontWeight: 600 }}>
+                        {isAr ? 'جاري تحليل الفرص لاستنتاج الأنسب...' : 'Analyzing internships for best matches...'}
+                      </p>
                     </div>
                   ) : recommendations.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      {recommendations.map((rec, i) => (
-                        <div key={i} style={{ padding: '1rem', background: 'var(--bg-card2)', borderRadius: '0.5rem', borderLeft: isAr ? 'none' : '4px solid var(--primary)', borderRight: isAr ? '4px solid var(--primary)' : 'none' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                            <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{rec.internshipDetails?.title}</h4>
-                            <span className="badge badge-primary">{rec.internshipDetails?.category || 'IT'}</span>
-                          </div>
-                          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                            <strong>{isAr ? 'سبب الملاءمة: ' : 'Why it matches: '}</strong>{rec.reasoning}
-                          </p>
-                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-                            {rec.internshipDetails?.skills?.map(s => (
-                              <span key={s} style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', background: 'rgba(255,255,255,0.1)', borderRadius: '1rem' }}>{s}</span>
-                            ))}
-                          </div>
+                      {/* Source indicator */}
+                      {recommendations[0]?.source && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.85rem', borderRadius: '0.6rem', background: recommendations[0].source === 'ai' ? 'rgba(99,102,241,0.1)' : 'rgba(16,185,129,0.1)', border: `1px solid ${recommendations[0].source === 'ai' ? 'rgba(99,102,241,0.3)' : 'rgba(16,185,129,0.3)'}`, fontSize: '0.78rem', fontWeight: 700, color: recommendations[0].source === 'ai' ? 'var(--primary-light)' : '#10b981' }}>
+                          {recommendations[0].source === 'ai' ? '🤖' : '⚡'}
+                          {recommendations[0].source === 'ai'
+                            ? (isAr ? 'مدعوم بـ Gemini AI' : 'Powered by Gemini AI')
+                            : (isAr ? 'توصيات ذكية محلية — تعمل بدون إنترنت' : 'Smart Local Matching — works offline')}
                         </div>
-                      ))}
+                      )}
+
+                      {recommendations.map((rec, i) => {
+                        const score = rec.matchScore;
+                        const scoreColor = score >= 70 ? '#10b981' : score >= 50 ? '#f59e0b' : 'var(--primary-light)';
+                        return (
+                          <div key={i} style={{ padding: '1.1rem 1.25rem', background: 'var(--bg)', borderRadius: '0.75rem', border: '1px solid var(--border)', borderLeft: isAr ? 'none' : `4px solid ${scoreColor}`, borderRight: isAr ? `4px solid ${scoreColor}` : 'none' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                              <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>{rec.internshipDetails?.title}</h4>
+                              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                {score && (
+                                  <span style={{ fontWeight: 800, fontSize: '0.82rem', color: scoreColor, background: `${scoreColor}15`, padding: '0.2rem 0.6rem', borderRadius: '1rem', border: `1px solid ${scoreColor}40` }}>
+                                    {score}% {isAr ? 'توافق' : 'match'}
+                                  </span>
+                                )}
+                                <span className="badge badge-primary" style={{ fontSize: '0.68rem' }}>{rec.internshipDetails?.category || 'IT'}</span>
+                                {rec.internshipDetails?.type && (
+                                  <span className="badge badge-gray" style={{ fontSize: '0.68rem' }}>{rec.internshipDetails.type}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Match score bar (for local results) */}
+                            {score && (
+                              <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, marginBottom: '0.75rem' }}>
+                                <div style={{ height: '100%', width: `${score}%`, background: `linear-gradient(90deg, ${scoreColor}, ${scoreColor}cc)`, borderRadius: 2, transition: 'width 0.6s ease' }} />
+                              </div>
+                            )}
+
+                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: 1.6 }}>
+                              <strong style={{ color: 'var(--text)' }}>{isAr ? 'سبب الملاءمة: ' : 'Why it matches: '}</strong>{rec.reasoning}
+                            </p>
+
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                              {rec.internshipDetails?.location && (
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>📍 {rec.internshipDetails.location}</span>
+                              )}
+                              {rec.internshipDetails?.skills?.slice(0, 4).map(s => (
+                                <span key={s} style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '1rem', color: 'var(--primary-light)' }}>{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      {isAr ? 'لم يتم العثور على فرص ملائمة أو لم يتم تفعل الذكاء الاصطناعي بنجاح.' : 'No relevant internships found or AI feature is not properly configured.'}
+                    <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <Brain size={48} style={{ margin: '0 auto 1rem', opacity: 0.25 }} />
+                      <p style={{ fontWeight: 700, marginBottom: '0.4rem' }}>{isAr ? 'لم يتم العثور على فرص مفتوحة' : 'No open internships found'}</p>
+                      <p style={{ fontSize: '0.82rem' }}>{isAr ? 'أضف بيانات إلى ملفك الشخصي للحصول على توصيات أدق' : 'Complete your profile for more accurate recommendations'}</p>
                     </div>
                   )}
-                  
+
                   <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button onClick={() => setShowAiModal(false)} className="btn-secondary">{isAr ? 'إغلاق' : 'Close'}</button>
                   </div>

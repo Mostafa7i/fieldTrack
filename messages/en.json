@@ -114,6 +114,8 @@
     "late": "Late"
   },
   "Internships": {
+    "paid": "Paid",
+    "unpaid": "Unpaid",
     "browse_internships": "Browse Internships",
     "opportunities_available": "opportunities available",
     "search_placeholder": "Search title or description…",
@@ -349,6 +351,7 @@
     "subtitle": "System overview and management",
     "total_users": "Total Users",
     "students": "students",
+    "student": "Student",
     "total_companies": "Total Companies",
     "total_internships": "Total Internships",
     "open": "open",
@@ -392,6 +395,7 @@
     "analytics": "Analytics",
     "users": "Users",
     "internships_tab": "Internships",
+    "internship": "Internship",
     "close_internship": "Close Internship",
     "open_internship": "Open Internship",
     "reports_tab": "Training Reports",

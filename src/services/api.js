@@ -55,7 +55,14 @@ export const internshipAPI = {
   getMy: () => api.get('/internships/my'),
   create: (data) => api.post('/internships', data),
   update: (id, data) => api.put(`/internships/${id}`, data),
+  toggle: (id) => api.put(`/internships/${id}/toggle`),
   delete: (id) => api.delete(`/internships/${id}`),
+};
+
+// ── Student Profile & Preferences ────────────────────
+export const studentAPI = {
+  getProfile: () => api.get('/students/me'),
+  updateProfile: (data) => api.put('/students/me', data),
 };
 
 // ── Applications ──────────────────────────────────────
@@ -72,6 +79,8 @@ export const reportAPI = {
   getAll: () => api.get('/reports'),
   getOne: (id) => api.get(`/reports/${id}`),
   review: (id, data) => api.put(`/reports/${id}`, data),
+  getSupervisorReport: () => api.get('/reports/supervisor-report'),
+  getStudentProgress: (studentId) => api.get(`/reports/student-progress/${studentId}`),
 };
 
 // ── Evaluations ───────────────────────────────────────
@@ -88,6 +97,7 @@ export const attendanceAPI = {
   autoLog: (data) => api.post('/attendance/auto', data),
   getAll: (params) => api.get('/attendance', { params }),
   delete: (id) => api.delete(`/attendance/${id}`),
+  getShiftInfo: () => api.get('/attendance/shift-info'),
 };
 
 // ── Notifications ─────────────────────────────────────
@@ -106,6 +116,7 @@ export const adminAPI = {
   getCompanies: () => api.get('/admin/companies'),
   verifyCompany: (id) => api.put(`/admin/companies/${id}/verify`),
   assignSupervisor: (studentUserId, supervisorId) => api.put(`/admin/students/${studentUserId}/assign-supervisor`, { supervisorId }),
+  removeSupervisor: (studentUserId) => api.put(`/admin/students/${studentUserId}/remove-supervisor`),
   getAllInternships: (params) => api.get('/admin/internships', { params }),
   toggleInternship: (id) => api.put(`/admin/internships/${id}/toggle`),
   getAllReports: (params) => api.get('/admin/reports', { params }),
@@ -113,13 +124,17 @@ export const adminAPI = {
   getPendingUsers: () => api.get('/admin/pending'),
   verifyUser: (id) => api.put(`/admin/users/${id}/verify`),
   rejectUser: (id) => api.put(`/admin/users/${id}/reject`),
+  // Supervisor management
+  getSupervisors: () => api.get('/admin/supervisors'),
+  getStudentsWithSupervisors: () => api.get('/admin/students-supervisors'),
+  updateSupervisorShift: (id, data) => api.put(`/admin/supervisors/${id}/shift`, data),
 };
 
 // ── AI Services ───────────────────────────────────────
 export const aiAPI = {
   // data: { message, history: [{role, text}], context }
   chat: (data) => api.post('/ai/chat', data),
-  evaluate: (applicationId) => api.get(`/ai/evaluate/${applicationId}`),
+  evaluate: (applicationId, locale = 'en') => api.get(`/ai/evaluate/${applicationId}?locale=${locale}`),
   getRecommendations: (locale = 'en') => api.get(`/ai/recommendations?locale=${locale}`),
   health: () => api.get('/ai/health'),
 };
