@@ -12,6 +12,7 @@ import {
   User, GraduationCap, Code, Target, Link, Star, Save, Check,
   MapPin, Calendar, Heart, Sparkles, BookOpen, Globe
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const CATEGORIES = ['IT', 'Engineering', 'Marketing', 'Finance', 'Design', 'Science', 'Healthcare', 'Education', 'Other'];
 const WORK_TYPES = ['full-time', 'part-time', 'remote', 'hybrid'];
@@ -54,7 +55,7 @@ export default function StudentProfilePage() {
   const [saving, setSaving] = useState(false);
   const [skillInput, setSkillInput] = useState('');
   const [hobbyInput, setHobbyInput] = useState('');
-
+  const router = useRouter();
   const [form, setForm] = useState({
     // basic user
     name: '',
@@ -170,10 +171,15 @@ export default function StudentProfilePage() {
                     : 'Keep your info updated for more accurate AI-powered internship recommendations'}
                 </p>
               </div>
-              <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 140, justifyContent: 'center' }}>
-                {saving ? <LoadingSpinner size={18} /> : <Save size={18} />}
-                {saving ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ التغييرات' : 'Save Changes')}
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap : 'wrap' }}>
+                <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 140, justifyContent: 'center' }}>
+                  {saving ? <LoadingSpinner size={18} /> : <Save size={18} />}
+                  {saving ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ التغييرات' : 'Save Changes')}
+                </button>
+                <button onClick={() => router.back()} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 140, justifyContent: 'center' }}>
+                  {isAr ? 'رجوع' : 'Back'}
+                </button>
+              </div>
             </div>
 
             {/* AI context banner */}
