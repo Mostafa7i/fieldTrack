@@ -10,6 +10,8 @@
 !.yarn/releases
 !.yarn/versions
 
+
+AI_CONTEXT.md
 /server
 # testing
 /coverage

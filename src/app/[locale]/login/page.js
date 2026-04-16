@@ -106,11 +106,15 @@ export default function LoginPage() {
       <div className="fade-in" style={{ width: '100%', maxWidth: 440, position: 'relative' }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
-            <div style={{ width: 44, height: 44, borderRadius: '0.75rem', background: 'linear-gradient(135deg, #6366f1, #0ea5e9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Briefcase size={22} color="white" />
+          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }} className="group">
+            <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-indigo-500/20 border border-slate-200 dark:border-slate-800 group-hover:scale-105 transition-transform">
+              <img src="/logo.png" alt="FieldTrack Logo" className="w-full h-full object-cover" />
             </div>
-            <span style={{ fontWeight: 900, fontSize: '1.5rem' }} className="gradient-text">FieldTrack</span>
+            <div className="flex items-baseline tracking-tighter text-4xl" dir="ltr">
+              <span className="font-black text-slate-900 dark:text-slate-100">F</span>
+              <span className="font-black bg-clip-text text-transparent bg-gradient-to-tr from-indigo-600 to-sky-500 dark:from-indigo-500 dark:to-cyan-400">T</span>
+              <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-cyan-400 ml-1 mt-auto mb-1.5"></span>
+            </div>
           </Link>
         </div>
 

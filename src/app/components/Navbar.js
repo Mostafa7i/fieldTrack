@@ -52,12 +52,16 @@ export default function Navbar({ onMenuToggle }) {
       {/* Logo */}
       <Link
         href="/"
-        className="flex items-center gap-2 flex-1 no-underline font-extrabold text-lg"
+        className="flex items-center gap-2 flex-1 no-underline font-extrabold text-xl group"
       >
-        <Briefcase size={22} className="text-blue-400" />
-        <span className="bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-          FieldTrack
-        </span>
+        <div className="w-9 h-9 rounded-xl overflow-hidden shadow-lg shadow-blue-500/20 border border-slate-700/50 group-hover:shadow-blue-500/40 transition-shadow">
+          <img src="/logo.png" alt="FieldTrack Logo" className="w-full h-full object-cover" />
+        </div>
+        <div className="flex items-baseline tracking-tighter text-2xl" dir="ltr">
+          <span className="font-black text-slate-100">F</span>
+          <span className="font-black bg-clip-text text-transparent bg-gradient-to-tr from-indigo-500 to-cyan-400">T</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 ml-0.5 mt-auto mb-1"></span>
+        </div>
       </Link>
 
       {/* Nav links & Actions */}

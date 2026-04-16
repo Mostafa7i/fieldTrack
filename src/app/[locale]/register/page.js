@@ -109,13 +109,15 @@ export default function RegisterPage() {
       <div className="relative w-full max-w-md animate-in fade-in duration-700">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 no-underline">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Briefcase size={22} className="text-white" />
+          <Link href="/" className="inline-flex items-center gap-2 no-underline group">
+            <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-indigo-500/20 border border-slate-200 dark:border-slate-800 group-hover:scale-105 transition-transform">
+              <img src="/logo.png" alt="FieldTrack Logo" className="w-full h-full object-cover" />
             </div>
-            <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-sky-500">
-              FieldTrack
-            </span>
+            <div className="flex items-baseline tracking-tighter text-4xl" dir="ltr">
+              <span className="font-black text-slate-900 dark:text-slate-100">F</span>
+              <span className="font-black bg-clip-text text-transparent bg-gradient-to-tr from-indigo-600 to-sky-500 dark:from-indigo-500 dark:to-cyan-400">T</span>
+              <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-cyan-400 ml-1 mt-auto mb-1.5"></span>
+            </div>
           </Link>
         </div>
 
